@@ -36,7 +36,7 @@ If no engine is specified, run an interactive engine selection process:
 
 **Question 1 — Prior experience** (ask this first, always, via `AskUserQuestion`):
 - Prompt: "Have you worked in any of these engines before?"
-- Options: `Godot` / `Unity` / `Unreal Engine 5` / `Multiple — I'll explain` / `None of them`
+- Options: `Godot` / `Unity` / `Unreal Engine 5` / `libGDX` / `Multiple — I'll explain` / `None of them`
 - If they pick a specific engine → recommend that engine. Prior experience outweighs all other factors. Confirm with them and skip the matrix.
 - If "None" or "Multiple" → continue to the questions below.
 
@@ -46,11 +46,11 @@ If no engine is specified, run an interactive engine selection process:
 - Prompt: "What platforms are you targeting for this game?"
 - Options: `PC (Steam / Epic)` / `Mobile (iOS / Android)` / `Console` / `Web / Browser` / `Multiple platforms`
 - Platform rules that feed directly into the recommendation:
-  - Mobile → Unity strongly preferred; Unreal is a poor fit; Godot is viable for simple mobile
-  - Console → Unity or Unreal; Godot console support requires third-party publishers or significant extra work
-  - Web → Godot exports cleanly to web; Unity WebGL is functional; Unreal has poor web support
+  - Mobile → Unity strongly preferred; libGDX is a solid code-first alternative (mature Android/iOS backends); Unreal is a poor fit; Godot is viable for simple mobile
+  - Console → Unity or Unreal; Godot and libGDX console support require third-party publishers or significant extra work
+  - Web → Godot exports cleanly to web; Unity WebGL is functional; libGDX via TeaVM works for most 2D games; Unreal has poor web support
   - PC only → all engines viable; other factors decide
-  - Multiple → Unity is the most portable across PC/mobile/console
+  - Multiple → Unity is the most portable across PC/mobile/console; libGDX is a strong second for code-first teams targeting desktop + mobile + web simultaneously
 
 1. **What kind of game?** (2D, 3D, or both?)
 2. **Primary input method?** (keyboard/mouse, gamepad, touch, or mixed?)
@@ -82,17 +82,25 @@ Do NOT use a simple scoring matrix that eliminates engines. Instead, reason thro
 - Licensing reality: 5% royalty only applies AFTER $1M gross revenue per title. For a first game or any game that doesn't reach $1M, it costs nothing. This threshold is high enough that most indie developers will never pay it.
 - Best fit: AAA-quality 3D; large open-world games; photorealistic visuals; developers with C++ experience or willing to use Blueprint; games targeting high-end PC/console where visual fidelity is a core selling point
 
+**libGDX (Java / Kotlin)**
+- Genuine strengths: Code-first framework — no editor, full Java/Kotlin IDE experience (IntelliJ, Android Studio); mature cross-platform targets (desktop via LWJGL3, Android, iOS via MobiVM, web via TeaVM); excellent for 2D games with custom rendering logic; lightweight — fast startup, small build sizes; truly free (Apache 2.0) with no revenue thresholds
+- Real limitations: No visual editor — all scenes/UI built in code (Skin Composer helps with UI theming but not layout); 3D is functional but far behind Godot/Unity/Unreal in tooling and tutorials; no built-in ECS (use Ashley extension); smaller asset store / community than Unity; requires Java/Kotlin proficiency — not beginner-friendly for non-programmers; no drag-and-drop workflow for artists
+- Licensing reality: Apache 2.0 — truly free forever, no revenue thresholds, no runtime fees, no attribution requirements
+- Best fit: 2D games where code-first workflow is preferred; cross-platform indie games (desktop + mobile + web from one codebase); developers with Java/Kotlin/Android backgrounds; projects where editor bloat is a negative; games where custom rendering, procedural content, or non-standard architectures outweigh the "no editor" cost
+
 **Genre-specific guidance** (factor this into the recommendation):
-- 2D any style → Godot strongly preferred
+- 2D any style → Godot strongly preferred; libGDX strong alternative for code-first teams
 - 3D stylized / atmospheric / contained world → Godot viable, Unity solid alternative
 - 3D open world (large, seamless) → Unity or Unreal; Godot is not production-proven for this
 - 3D photorealistic / AAA-quality → Unreal
-- Mobile-first → Unity strongly preferred
-- Console-first → Unity or Unreal; Godot console support requires extra work
+- Mobile-first → Unity strongly preferred; libGDX viable for 2D mobile games
+- Console-first → Unity or Unreal; Godot and libGDX console support require extra work
+- Web-first 2D → Godot or libGDX (TeaVM) — both export cleanly
 - Horror / narrative / walking sim → any engine; match to art style and team experience
 - Action RPG / Soulslike → Unity or Unreal for 3D; community support and assets matter here
-- Platformer 2D → Godot
-- Strategy / top-down / RTS → Godot or Unity depending on 2D vs 3D
+- Platformer 2D → Godot or libGDX
+- Strategy / top-down / RTS → Godot or Unity depending on 2D vs 3D; libGDX strong for 2D strategy with custom logic
+- Roguelike / deck-builder / turn-based 2D → libGDX is excellent (code-first shines for procgen and custom systems)
 
 **Recommendation format:**
 1. Show a comparison table with the user's specific factors as rows
@@ -140,6 +148,22 @@ If Godot was chosen, ask the user which language to use **before** showing the p
 
 Record the choice. It determines the CLAUDE.md template, naming conventions, specialist routing, and which agent is spawned for code files throughout the project.
 
+### Language Selection (libGDX only)
+
+If libGDX was chosen, ask the user which language to use **before** showing the proposed Technology Stack:
+
+> "libGDX supports two primary JVM languages:
+>
+>   **A) Java** — libGDX's native language. Maximum compatibility with all backends (desktop, Android, iOS via MobiVM, web via TeaVM). Widest tutorial coverage. Most idiomatic for libGDX APIs.
+>   **B) Kotlin** — Modern JVM language. Null-safety, data classes, extension functions, coroutines. Works on all libGDX backends but TeaVM support has caveats. Strong interop with Java. Best for teams already comfortable with Kotlin.
+>   **C) Both** — Java core with Kotlin for selected subsystems, or vice versa. Advanced setup — manage two source sets in Gradle.
+>
+> Which will this project primarily use?"
+
+Record the choice. It determines the CLAUDE.md template, naming conventions, specialist routing (`libgdx-java-specialist` vs. a hypothetical Kotlin specialist — currently only Java specialist exists), and which agent is spawned for code files throughout the project.
+
+> **Current limitation**: Only `libgdx-java-specialist` exists in this project. Kotlin selection should warn the user that Kotlin-specific review will fall through to the Java specialist with reduced effectiveness until a dedicated Kotlin specialist is authored.
+
 ---
 
 Read `CLAUDE.md` and show the user the proposed Technology Stack changes.
@@ -166,6 +190,8 @@ Update the Technology Stack section, replacing the `[CHOOSE]` placeholders with 
 - **Build System**: Unreal Build Tool (UBT)
 - **Asset Pipeline**: Unreal Content Pipeline
 ```
+
+**For libGDX** — use the template matching the language chosen. See **Appendix B** at the bottom of this skill for Java, Kotlin, and Both variants.
 
 ---
 
@@ -195,6 +221,8 @@ engine-appropriate defaults. Read the existing template first, then fill in:
 - Functions: PascalCase (e.g., `TakeDamage()`)
 - Booleans: `b` prefix (e.g., `bIsAlive`)
 - Files: Match class without prefix (e.g., `PlayerController.h`)
+
+**For libGDX** — see **Appendix B** for Java, Kotlin, and Both variants.
 
 ### Input & Platform Section
 
@@ -291,6 +319,8 @@ Also populate the `## Engine Specialists` section in `technical-preferences.md` 
 | General architecture review | unreal-specialist |
 ```
 
+**For libGDX** — see **Appendix B** for Java, Kotlin, and Both variants of the routing table.
+
 ### Collaborative Step
 Present the filled-in preferences to the user. For Godot, include the chosen language and note where the full naming conventions and routing tables live:
 > "Here are the default technical preferences for [engine] ([language if Godot]). The naming conventions and specialist routing are in Appendix A of this skill — I'll apply the [GDScript/C#/Both] variant. Want to customize any of these, or shall I save the defaults?"
@@ -310,6 +340,7 @@ Check whether the engine version is likely beyond the LLM's training data.
 - Godot: training data likely covers up to ~4.3
 - Unity: training data likely covers up to ~2023.x / early 6000.x
 - Unreal: training data likely covers up to ~5.3 / early 5.4
+- libGDX: training data likely covers up to ~1.11 / early 1.12 (LWJGL2 removal and Android minSdk bumps in 1.12/1.13 may be past the cutoff — verify)
 
 Compare the user's chosen version against these baselines:
 
@@ -577,6 +608,7 @@ Verdict: **COMPLETE** — engine configured and reference docs populated.
 - Always show the user what you're about to change before making CLAUDE.md edits
 - If WebSearch returns ambiguous results, show the user and let them decide
 - When the user chose **GDScript**: copy the GDScript CLAUDE.md template from Appendix A1 exactly. NEVER add "C++ via GDExtension" to the Language field. GDScript projects may use GDExtension, but it is not a primary project language. The `godot-gdextension-specialist` in the routing table is available for when native extensions are needed — it does not make C++ a project language.
+- When the user chose **libGDX with Kotlin or Both**: warn that only `libgdx-java-specialist` exists. Kotlin-specific review falls through to the Java specialist. Do NOT invent a `libgdx-kotlin-specialist` agent reference in the routing table — use `libgdx-java-specialist` with a note acknowledging the gap.
 
 ---
 
@@ -713,3 +745,159 @@ Use GDScript conventions for `.gd` files and C# conventions for `.cs` files. Mix
 | Native extension / plugin files (.gdextension, C++) | godot-gdextension-specialist |
 | General architecture review | godot-specialist |
 ```
+
+---
+
+## Appendix B — libGDX Language Configuration
+
+All libGDX-specific variants for language-dependent configuration. Referenced from Sections 4 and 5 — only relevant when libGDX is the chosen engine. Use the subsection matching the language chosen in Section 4.
+
+---
+
+### B1. CLAUDE.md Technology Stack Templates
+
+**Java:**
+```markdown
+- **Engine**: libGDX [version]
+- **Language**: Java [17+]
+- **Build System**: Gradle (multi-project: core + lwjgl3 + android + ios + html)
+- **Asset Pipeline**: TexturePacker + AssetManager + Gradle asset tasks
+```
+
+**Kotlin:**
+```markdown
+- **Engine**: libGDX [version]
+- **Language**: Kotlin [1.9+] (on JVM — Java interop available)
+- **Build System**: Gradle (multi-project: core + lwjgl3 + android + ios + html)
+- **Asset Pipeline**: TexturePacker + AssetManager + Gradle asset tasks
+```
+
+> **Guardrail**: When using the Kotlin template, note in CLAUDE.md that TeaVM (web) support for Kotlin has caveats — verify the target version supports Kotlin bytecode before committing to web export.
+
+**Both — Java + Kotlin:**
+```markdown
+- **Engine**: libGDX [version]
+- **Language**: Java [17+] (core gameplay), Kotlin [1.9+] (selected subsystems — UI / scripting)
+- **Build System**: Gradle (multi-project: core + lwjgl3 + android + ios + html)
+- **Asset Pipeline**: TexturePacker + AssetManager + Gradle asset tasks
+```
+
+---
+
+### B2. Naming Conventions
+
+**Java:**
+- Classes: PascalCase (e.g., `PlayerCharacter`, `HealthComponent`)
+- Interfaces: PascalCase, no `I` prefix (e.g., `Disposable`, `Poolable`)
+- Methods: camelCase (e.g., `takeDamage`, `getCurrentHealth`)
+- Fields: camelCase (e.g., `currentHealth`, `moveSpeed`)
+- Constants: UPPER_SNAKE_CASE (e.g., `MAX_SPEED`, `DEFAULT_MOVE_SPEED`)
+- Enum values: UPPER_SNAKE_CASE (e.g., `DamageType.PHYSICAL`)
+- Packages: all lowercase, reverse-domain (`com.studio.game.combat`)
+- Files: PascalCase matching class name (e.g., `PlayerCharacter.java`)
+- Test classes: `ClassNameTest` suffix (e.g., `PlayerCharacterTest.java`)
+- Scenes/levels: no engine-level "scene" concept — `Screen` subclasses follow Java class naming (e.g., `MainMenuScreen.java`)
+- Asset file names: kebab-case or snake_case (e.g., `player-idle.atlas`, `menu_music.ogg`) — consistent within project
+
+**Kotlin:**
+- Classes: PascalCase (same as Java)
+- Methods / properties: camelCase
+- Constants: UPPER_SNAKE_CASE
+- Files: PascalCase matching primary class, OR camelCase for extension-only files (e.g., `StringExtensions.kt`)
+- Packages: all lowercase, reverse-domain
+- Prefer idiomatic Kotlin: data classes, sealed classes, extension functions, `val` over `var`
+
+**Both — Java + Kotlin:**
+Use Java conventions for `.java` files and Kotlin conventions for `.kt` files. When in doubt about which language a new system should use, ask the user and record the decision in `technical-preferences.md`. Keep core gameplay in one language consistently — mixing per-file within a subsystem is allowed but should be justified.
+
+---
+
+### B3. Engine Specialists Routing
+
+**Java:**
+```markdown
+## Engine Specialists
+- **Primary**: libgdx-specialist
+- **Language/Code Specialist**: libgdx-java-specialist (all .java files)
+- **Shader Specialist**: libgdx-shader-specialist (.vert / .frag / .glsl files, ShaderProgram usage)
+- **UI Specialist**: libgdx-scene2d-specialist (Scene2D.ui, Stage, Skin, Table layouts)
+- **Additional Specialists**: [none currently — Ashley ECS and Box2D handled by libgdx-specialist]
+- **Routing Notes**: Invoke primary for architecture decisions, backend choices, ADR validation, and cross-cutting code review. Invoke Java specialist for code quality, memory/GC discipline, Disposable patterns, libGDX collection usage, and Java-specific idioms. Invoke shader specialist for ShaderProgram, FrameBuffer effects, and GLSL code. Invoke Scene2D specialist for all UI implementation.
+
+### File Extension Routing
+
+| File Extension / Type | Specialist to Spawn |
+|-----------------------|---------------------|
+| Game code (.java files) | libgdx-java-specialist |
+| Shader files (.vert, .frag, .glsl) | libgdx-shader-specialist |
+| UI / Scene2D code (actors, Stage setup) | libgdx-scene2d-specialist |
+| Skin files (.json UI skin, .atlas) | libgdx-scene2d-specialist |
+| Gradle build (build.gradle, settings.gradle, gradle.properties) | libgdx-specialist |
+| Platform launcher modules (lwjgl3/, android/, ios/, html/) | libgdx-specialist |
+| Particle effect files (.p) | libgdx-shader-specialist (or art pipeline) |
+| General architecture review | libgdx-specialist |
+```
+
+**Kotlin:**
+```markdown
+## Engine Specialists
+- **Primary**: libgdx-specialist
+- **Language/Code Specialist**: libgdx-java-specialist (handles .kt files with reduced effectiveness — no dedicated Kotlin specialist yet)
+- **Shader Specialist**: libgdx-shader-specialist (.vert / .frag / .glsl files, ShaderProgram usage)
+- **UI Specialist**: libgdx-scene2d-specialist (Scene2D.ui, Stage, Skin, Table layouts)
+- **Additional Specialists**: [none currently]
+- **Routing Notes**: Invoke primary for architecture decisions, backend choices, ADR validation, and cross-cutting code review. Kotlin code review currently falls through to libgdx-java-specialist until a Kotlin specialist is authored — expect reduced Kotlin-idiomatic feedback. Invoke shader specialist for ShaderProgram, FrameBuffer effects, and GLSL code. Invoke Scene2D specialist for all UI implementation.
+
+### File Extension Routing
+
+| File Extension / Type | Specialist to Spawn |
+|-----------------------|---------------------|
+| Game code (.kt files) | libgdx-java-specialist (with Kotlin-gap caveat) |
+| Shader files (.vert, .frag, .glsl) | libgdx-shader-specialist |
+| UI / Scene2D code (actors, Stage setup) | libgdx-scene2d-specialist |
+| Skin files (.json UI skin, .atlas) | libgdx-scene2d-specialist |
+| Gradle build (build.gradle, settings.gradle, gradle.properties) | libgdx-specialist |
+| Platform launcher modules (lwjgl3/, android/, ios/, html/) | libgdx-specialist |
+| Particle effect files (.p) | libgdx-shader-specialist (or art pipeline) |
+| General architecture review | libgdx-specialist |
+```
+
+**Both — Java + Kotlin:**
+```markdown
+## Engine Specialists
+- **Primary**: libgdx-specialist
+- **Java Specialist**: libgdx-java-specialist (.java files)
+- **Kotlin Specialist**: libgdx-java-specialist (handles .kt with reduced effectiveness — no dedicated Kotlin specialist yet)
+- **Shader Specialist**: libgdx-shader-specialist (.vert / .frag / .glsl files, ShaderProgram usage)
+- **UI Specialist**: libgdx-scene2d-specialist (Scene2D.ui, Stage, Skin, Table layouts)
+- **Additional Specialists**: [none currently]
+- **Routing Notes**: Invoke primary for cross-language architecture decisions and which systems belong in which language. Invoke Java specialist for .java files and for .kt files until a dedicated Kotlin specialist is authored. Prefer simple interfaces at the Java↔Kotlin boundary — avoid passing Kotlin-specific types (`Sequence`, `Flow`, `suspend` functions) into Java consumers.
+
+### File Extension Routing
+
+| File Extension / Type | Specialist to Spawn |
+|-----------------------|---------------------|
+| Game code (.java files) | libgdx-java-specialist |
+| Game code (.kt files) | libgdx-java-specialist (with Kotlin-gap caveat) |
+| Cross-language boundary decisions | libgdx-specialist |
+| Shader files (.vert, .frag, .glsl) | libgdx-shader-specialist |
+| UI / Scene2D code (actors, Stage setup) | libgdx-scene2d-specialist |
+| Skin files (.json UI skin, .atlas) | libgdx-scene2d-specialist |
+| Gradle build (build.gradle, settings.gradle, gradle.properties) | libgdx-specialist |
+| Platform launcher modules (lwjgl3/, android/, ios/, html/) | libgdx-specialist |
+| Particle effect files (.p) | libgdx-shader-specialist (or art pipeline) |
+| General architecture review | libgdx-specialist |
+```
+
+---
+
+### B4. Testing Framework Default
+
+**All libGDX variants:**
+- Framework: **JUnit 5** (Jupiter) on the JVM
+- Headless runtime: `HeadlessApplication` (`com.badlogic.gdx.backends.headless.HeadlessApplication`) for tests that need libGDX singletons (`Gdx.files`, `MathUtils`, libGDX collections)
+- Pure-logic tests (no libGDX singletons accessed): plain JUnit, no headless init needed
+- CI command: `./gradlew test`
+- Test location: `core/src/test/java/...` (Java) or `core/src/test/kotlin/...` (Kotlin)
+
+> See `docs/engine-reference/libgdx/modules/testing.md` (create via `/test-setup` for libGDX) for the full headless test harness pattern.

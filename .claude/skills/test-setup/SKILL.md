@@ -33,7 +33,7 @@ A test framework installed at sprint four costs 3 sprints.
    - Glob `tests/unit/` and `tests/integration/` — do subdirectories exist?
    - Glob `.github/workflows/` — does a CI workflow file exist?
    - Glob `tests/gdunit4_runner.gd` (Godot) or `tests/EditMode/` (Unity) or
-     `Source/Tests/` (Unreal) for engine-specific artifacts.
+     `Source/Tests/` (Unreal) or `core/src/test/` (libGDX) for engine-specific artifacts.
 
 3. **Report findings**:
    - "Engine: [engine]. Test directory: [found / not found]. CI workflow: [found / not found]."
@@ -201,6 +201,119 @@ Test class naming: F[SystemName]Test
 Test category naming: "MyGame.[System].[Feature]"
 ```
 
+#### libGDX (`Engine: libGDX`)
+
+libGDX tests are standard JUnit 5 tests run via Gradle. Tests that need libGDX
+singletons (`Gdx.files`, `MathUtils`, `Array`, `ObjectMap`) require a
+`HeadlessApplication` to initialize the framework — pure-logic tests do not.
+
+Create `core/src/test/java/README.md`:
+```markdown
+# libGDX Tests (JUnit 5)
+
+Tests live in `core/src/test/java/` (or `core/src/test/kotlin/` for Kotlin).
+Package layout mirrors `core/src/main/java/`.
+
+## Two kinds of test
+
+**Pure-logic tests** (no libGDX singletons):
+- Plain JUnit 5. No headless init. Fastest.
+- Use for: formulas, state machines, pure data transformations.
+
+**Framework-aware tests** (need libGDX runtime):
+- Bootstrap a `HeadlessApplication` in a `@BeforeAll` setup.
+- Use for: asset loading, MathUtils, libGDX collection behavior, I18NBundle.
+- See `tests/helpers/HeadlessTestApp.java` for the harness.
+
+## Running
+
+- `./gradlew test` — run all tests
+- `./gradlew core:test` — run only core tests
+- `./gradlew test --tests "com.studio.combat.*"` — run a package
+```
+
+Create `core/src/test/java/com/studio/helpers/HeadlessTestApp.java` (adjust
+package to match the project):
+
+```java
+package com.studio.helpers;
+
+import com.badlogic.gdx.ApplicationListener;
+import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.backends.headless.HeadlessApplication;
+import com.badlogic.gdx.backends.headless.HeadlessApplicationConfiguration;
+
+/**
+ * Boots a HeadlessApplication so libGDX singletons (Gdx.files, MathUtils, etc.)
+ * are available in tests. Use @BeforeAll in test classes that need this.
+ */
+public final class HeadlessTestApp {
+
+    private HeadlessTestApp() {}
+
+    public static HeadlessApplication boot(ApplicationListener listener) {
+        HeadlessApplicationConfiguration cfg = new HeadlessApplicationConfiguration();
+        cfg.updatesPerSecond = 0;  // no render loop — tests drive manually
+        return new HeadlessApplication(listener, cfg);
+    }
+
+    public static void shutdown() {
+        if (Gdx.app != null) Gdx.app.exit();
+    }
+}
+```
+
+Create `core/src/test/java/com/studio/SmokeTest.java` (example — adjust package):
+
+```java
+package com.studio;
+
+import com.badlogic.gdx.ApplicationAdapter;
+import com.badlogic.gdx.backends.headless.HeadlessApplication;
+import com.studio.helpers.HeadlessTestApp;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+
+class SmokeTest {
+
+    static HeadlessApplication app;
+
+    @BeforeAll
+    static void boot() {
+        app = HeadlessTestApp.boot(new ApplicationAdapter() {});
+    }
+
+    @AfterAll
+    static void shutdown() {
+        HeadlessTestApp.shutdown();
+    }
+
+    @Test
+    void libGdxBootsHeadless() {
+        assertNotNull(com.badlogic.gdx.Gdx.app, "Gdx.app should be initialized");
+    }
+}
+```
+
+Note in the tests README: **Enabling JUnit 5 + headless backend in Gradle**
+
+Add to `core/build.gradle`:
+
+```gradle
+dependencies {
+    testImplementation "org.junit.jupiter:junit-jupiter:5.10.2"
+    testImplementation "com.badlogicgames.gdx:gdx-backend-headless:$gdxVersion"
+    testImplementation "com.badlogicgames.gdx:gdx-platform:$gdxVersion:natives-desktop"
+}
+
+test {
+    useJUnitPlatform()
+}
+```
+
 ---
 
 ## Phase 4: Create CI/CD Workflow
@@ -339,6 +452,67 @@ jobs:
 
 Note: UE CI requires a self-hosted runner with Unreal Editor installed.
 Set the `UE_EDITOR_PATH` environment variable on the runner.
+
+### libGDX
+
+Create `.github/workflows/tests.yml`:
+
+```yaml
+name: Automated Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Run libGDX Tests (JUnit 5)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: ${{ runner.os }}-gradle-
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Run tests
+        run: ./gradlew test --no-daemon --stacktrace
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: |
+            **/build/reports/tests/
+            **/build/test-results/
+```
+
+Notes:
+- `./gradlew test` runs tests in every subproject — `core:test` is the typical target
+- Headless tests require no display, so Ubuntu runners work
+- If the project uses the gdx-controllers extension with LWJGL3 desktop tests, add `-Djava.awt.headless=true` to the JVM args — but prefer keeping tests in `core` module without LWJGL3 dependencies
+- Java version (17) must match the project's `sourceCompatibility` — update if pinning a different version
 
 ---
 
